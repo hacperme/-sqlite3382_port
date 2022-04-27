@@ -1,7 +1,8 @@
 #include <stdio.h>
 
-int main()
+int main(int argc, char **argv)
 {
-    printf("Hello World!\n");
+//    printf("Hello World!\n");
+    wmain(argc, argv);
     return 0;
 }
