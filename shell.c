@@ -35,6 +35,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
+#include "config.h"
+
 /*
 ** Optionally #include a user-defined header, whereby compilation options
 ** may be set prior to where they take effect, but after platform setup. 
@@ -463,7 +465,7 @@ static char continuePrompt[20]; /* Continuation prompt. default: "   ...> " */
 ** console and if this is running on a Windows machine, translate the
 ** output from UTF-8 into MBCS.
 */
-#if defined(_WIN32) || defined(WIN32)
+#if 0// defined(_WIN32) || defined(WIN32)
 void utf8_printf(FILE *out, const char *zFormat, ...){
   va_list ap;
   va_start(ap, zFormat);
@@ -676,7 +678,7 @@ static char *local_getline(char *zLine, FILE *in){
       break;
     }
   }
-#if defined(_WIN32) || defined(WIN32)
+#if 0 //defined(_WIN32) || defined(WIN32)
   /* For interactive input on Windows systems, translate the
   ** multi-byte characterset characters into UTF-8. */
   if( stdin_is_interactive && in==stdin ){
@@ -2314,7 +2316,7 @@ static void ctxErrorMsg(sqlite3_context *ctx, const char *zFmt, ...){
   va_end(ap);
 }
 
-#if defined(_WIN32)
+#if 0 //defined(_WIN32)
 /*
 ** This function is designed to convert a Win32 FILETIME structure into the
 ** number of seconds since the Unix Epoch (1970-01-01 00:00:00 UTC).
@@ -2394,7 +2396,7 @@ static int fileStat(
   const char *zPath,
   struct stat *pStatBuf
 ){
-#if defined(_WIN32)
+#if 0 //defined(_WIN32)
   int rc = stat(zPath, pStatBuf);
   if( rc==0 ) statTimesToUtc(zPath, pStatBuf);
   return rc;
@@ -2412,7 +2414,7 @@ static int fileLinkStat(
   const char *zPath,
   struct stat *pStatBuf
 ){
-#if defined(_WIN32)
+#if 0 //defined(_WIN32)
   int rc = lstat(zPath, pStatBuf);
   if( rc==0 ) statTimesToUtc(zPath, pStatBuf);
   return rc;
@@ -2527,7 +2529,7 @@ static int writeFile(
 
   if( mtime>=0 ){
 #if defined(_WIN32)
-#if !SQLITE_OS_WINRT
+#if 0 //!SQLITE_OS_WINRT
     /* Windows */
     FILETIME lastAccess;
     FILETIME lastWrite;
@@ -17082,7 +17084,7 @@ static int optionMatch(const char *zStr, const char *zOpt){
 */
 int shellDeleteFile(const char *zFilename){
   int rc;
-#ifdef _WIN32
+#if 0 //def _WIN32
   wchar_t *z = sqlite3_win32_utf8_to_unicode(zFilename);
   rc = _wunlink(z);
   sqlite3_free(z);
@@ -19303,7 +19305,7 @@ static int do_meta_command(char *zLine, ShellState *p){
   if( c=='c' && strcmp(azArg[0],"cd")==0 ){
     failIfSafeMode(p, "cannot run .cd in safe mode");
     if( nArg==2 ){
-#if defined(_WIN32) || defined(WIN32)
+#if 0 //defined(_WIN32) || defined(WIN32)
       wchar_t *z = sqlite3_win32_utf8_to_unicode(azArg[1]);
       rc = !SetCurrentDirectoryW(z);
       sqlite3_free(z);
@@ -22981,7 +22983,7 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv){
   ** subsequent sqlite3_config() calls will work.  So copy all results into
   ** memory that does not come from the SQLite memory allocator.
   */
-#if !SQLITE_SHELL_IS_UTF8
+#if 0 //!SQLITE_SHELL_IS_UTF8
   sqlite3_initialize();
   argvToFree = malloc(sizeof(argv[0])*argc*2);
   shell_check_oom(argvToFree);
