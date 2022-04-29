@@ -1,6 +1,7 @@
 #ifndef _SQLITE_CONFIG_H_
 #define _SQLITE_CONFIG_H_
 
+#include <stdint.h>
 
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
@@ -198,21 +199,28 @@
 #endif
 
 #ifndef SQLITE_OS_CUS_WINDOWS
-#define SQLITE_OS_CUS_WINDOWS 1
+#define SQLITE_OS_CUS_WINDOWS 0
 #endif
 
 //#ifndef SQLITE_OS_RTTHREAD
 //#define SQLITE_OS_RTTHREAD 1
 //#endif
 
-//#ifndef SQLITE_OS_QUEC_RTOS
-//#define SQLITE_OS_QUEC_RTOS 1
-//#endif
+#ifndef SQLITE_OS_QUEC_RTOS
+#define SQLITE_OS_QUEC_RTOS 1
+#endif
+
 #endif
 
 #if SQLITE_OS_CUS_WINDOWS
     #ifndef SQLITE_MUTEX_CUS_WINDOWS
     #    define SQLITE_MUTEX_CUS_WINDOWS 1
+    #endif
+#endif
+
+#if SQLITE_OS_QUEC_RTOS
+    #ifndef SQLITE_MUTEX_QUEC_RTOS
+    #    define SQLITE_MUTEX_QUEC_RTOS 1
     #endif
 #endif
 
