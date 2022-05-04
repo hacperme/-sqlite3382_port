@@ -5,9 +5,10 @@ CONFIG -= qt
 
 SOURCES += \
         main.c \
+        port/os_win.c \
         shell.c \
         sqlite3.c \
-        windows/os_win.c
+        sqlite3_demo.c
 
 HEADERS += \
     config.h \
