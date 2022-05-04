@@ -248,7 +248,7 @@ static int _win_mtx_try(sqlite3_mutex *p)
 {
     assert(p != 0);
 
-    if (ReleaseMutex(p->mutex) != 0)
+    if (WaitForSingleObject(p->mutex, 0) != 0)
     {
         return SQLITE_BUSY;
     }
@@ -445,7 +445,7 @@ static int winWrite(
         return SQLITE_FULL;
     }
 
-    return SQLITE_OK;
+   
 
     return SQLITE_OK;
 }
@@ -1123,6 +1123,7 @@ static int winDelete(
   int syncDir                 /* Not used on win32 */
 ){
   int rc = SQLITE_OK;            /* Function Return Code */
+  remove(zFilename);
   return rc;
 }
 
