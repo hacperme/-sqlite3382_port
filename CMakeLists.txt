@@ -13,6 +13,7 @@ target_include_directories(${target} PUBLIC . port)
 target_sources(${target} PRIVATE
 	sqlite3.c
 	port/os_quec_rtos.c
+	sqlite3_demo.c
 )
 
 relative_glob(srcs include/*.h src/*.c inc/*.h)
