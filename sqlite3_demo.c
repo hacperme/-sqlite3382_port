@@ -28,6 +28,7 @@ WHEN				WHO			WHAT, WHERE, WHY
 #ifndef _WIN32
 #include "ql_api_osi.h"
 #include "ql_log.h"
+#include "ql_api_dev.h"
 
 #define QL_SQLITE_DEMO_LOG(msg, ...)			    QL_LOG(QL_LOG_LEVEL_INFO, "sqlite_demo", msg, ##__VA_ARGS__)
 
@@ -75,7 +76,15 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName)
     return 0;
 }
 
-
+static void print_heap_info(void)
+{
+#ifndef _WIN32
+    ql_memory_heap_state_t heap_info = {0};
+    ql_dev_memory_size_query(&heap_info);
+    QL_SQLITE_DEMO_LOG("total:%lu, free:%lu", heap_info.total_size, heap_info.avail_size);
+#endif
+    return;
+}
 
 static void _sqlite3_demo_task(void *arg)
 {
@@ -84,6 +93,7 @@ static void _sqlite3_demo_task(void *arg)
     sqlite3_init();
     int rc;
 
+    print_heap_info();
 #ifndef _WIN32
     rc = sqlite3_open("UFS:/123.db", &db);
 #else
@@ -96,25 +106,29 @@ static void _sqlite3_demo_task(void *arg)
         goto exit;
     }
 
+    print_heap_info();
+
     while (1)
     {
 
         rc = sqlite3_exec(db, "select name from sqlite_master where type='table' and name='tbl1';", callback, 0, &zErrMsg);
         if (rc != SQLITE_OK)
         {
-            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc,zErrMsg);
+            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc, zErrMsg);
             sqlite3_free(zErrMsg);
         }
-        else {
+        else
+        {
 
             rc = sqlite3_exec(db, "drop table tbl1;", callback, 0, &zErrMsg);
             if (rc != SQLITE_OK)
             {
-                QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc,zErrMsg);
+                QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc, zErrMsg);
                 sqlite3_free(zErrMsg);
             }
-
         }
+
+        print_heap_info();
 
         rc = sqlite3_exec(db, "create table tbl1(one text, two int);", callback, 0, &zErrMsg);
         if (rc != SQLITE_OK)
@@ -124,6 +138,8 @@ static void _sqlite3_demo_task(void *arg)
             break;
         }
 
+        print_heap_info();
+
         rc = sqlite3_exec(db, "insert into tbl1 values('hello!',10);", callback, 0, &zErrMsg);
         if (rc != SQLITE_OK)
         {
@@ -132,6 +148,8 @@ static void _sqlite3_demo_task(void *arg)
             break;
         }
 
+        print_heap_info();
+
         rc = sqlite3_exec(db, "select * from tbl1;", callback, 0, &zErrMsg);
         if (rc != SQLITE_OK)
         {
@@ -139,10 +157,14 @@ static void _sqlite3_demo_task(void *arg)
             sqlite3_free(zErrMsg);
         }
 
+        print_heap_info();
+
         break;
     }
 
     sqlite3_close(db);
+
+    print_heap_info();
 
 
 exit:
