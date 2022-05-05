@@ -84,7 +84,7 @@ static void _sqlite3_demo_task(void *arg)
     sqlite3_init();
     int rc;
 
-    #ifndef _WIN32
+#ifndef _WIN32
     rc = sqlite3_open("UFS:/123.db", &db);
 #else
     rc = sqlite3_open("123.db", &db);
@@ -98,10 +98,28 @@ static void _sqlite3_demo_task(void *arg)
 
     while (1)
     {
+
+        rc = sqlite3_exec(db, "select name from sqlite_master where type='table' and name='tbl1';", callback, 0, &zErrMsg);
+        if (rc != SQLITE_OK)
+        {
+            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc,zErrMsg);
+            sqlite3_free(zErrMsg);
+        }
+        else {
+
+            rc = sqlite3_exec(db, "drop table tbl1;", callback, 0, &zErrMsg);
+            if (rc != SQLITE_OK)
+            {
+                QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc,zErrMsg);
+                sqlite3_free(zErrMsg);
+            }
+
+        }
+
         rc = sqlite3_exec(db, "create table tbl1(one text, two int);", callback, 0, &zErrMsg);
         if (rc != SQLITE_OK)
         {
-            QL_SQLITE_DEMO_LOG("SQL error: %s", zErrMsg);
+            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc,zErrMsg);
             sqlite3_free(zErrMsg);
             break;
         }
@@ -109,7 +127,7 @@ static void _sqlite3_demo_task(void *arg)
         rc = sqlite3_exec(db, "insert into tbl1 values('hello!',10);", callback, 0, &zErrMsg);
         if (rc != SQLITE_OK)
         {
-            QL_SQLITE_DEMO_LOG("SQL error: %s", zErrMsg);
+            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc,zErrMsg);
             sqlite3_free(zErrMsg);
             break;
         }
@@ -117,7 +135,7 @@ static void _sqlite3_demo_task(void *arg)
         rc = sqlite3_exec(db, "select * from tbl1;", callback, 0, &zErrMsg);
         if (rc != SQLITE_OK)
         {
-            QL_SQLITE_DEMO_LOG("SQL error: %s", zErrMsg);
+            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc,zErrMsg);
             sqlite3_free(zErrMsg);
         }
 
@@ -138,9 +156,9 @@ exit:
 
 void sqlite3_demo_init(void)
 {
-    #ifndef _WIN32
-    int ret = ql_rtos_task_create(&sqlite3_demo_task, 8*1024, APP_PRIORITY_NORMAL, "sqlite3_demo", _sqlite3_demo_task, NULL, 0);
-    if(ret != 0)
+#ifndef _WIN32
+    int ret = ql_rtos_task_create(&sqlite3_demo_task, 8 * 1024, APP_PRIORITY_NORMAL, "sqlite3_demo", _sqlite3_demo_task, NULL, 0);
+    if (ret != 0)
     {
         ql_assert();
     }
