@@ -341,7 +341,7 @@ static int quec_read(
   int amt,                   /* Number of bytes to read */
   sqlite3_int64 offset       /* Begin reading at this offset */
 ){
-    quec_file_t *file = (quec_file_t*)file_id;
+    quec_file_t *file = (quec_file_t *)file_id;
     sqlite3_int64 new_offset;
     int r_cnt;
 
@@ -351,34 +351,27 @@ static int quec_read(
 
     new_offset = ql_fseek(file->fd, offset, SEEK_SET);
 
-    if (new_offset != offset)
+    if (new_offset < 0)
     {
         return SQLITE_IOERR_READ;
     }
 
-    do {
-        r_cnt = ql_fread(pBuf, amt, 1, file->fd);
+    r_cnt = ql_fread(pBuf, 1, amt, file->fd);
 
-        if (r_cnt == amt)
-        {
-            break;
-        }
-
-        if (r_cnt < 0)
-        {
-
-            return SQLITE_IOERR_READ;
-        }
-        else if (r_cnt > 0)
-        {
-            amt -= r_cnt;
-            pBuf = (void*)(r_cnt + (char*)pBuf);
-        }
-    } while (r_cnt > 0);
-
-    if (r_cnt != amt)
+    if (r_cnt < 0)
     {
-        memset(&((char*)pBuf)[r_cnt], 0, amt - r_cnt);
+        if (QL_FILE_READ_ZERO == r_cnt)
+        {
+            memset(pBuf, 0, amt);
+            return SQLITE_IOERR_SHORT_READ;
+        }
+
+        return SQLITE_IOERR_READ;
+    }
+
+    if (r_cnt == 0)
+    {
+        memset(pBuf, 0, amt);
         return SQLITE_IOERR_SHORT_READ;
     }
 
@@ -391,12 +384,13 @@ static int quec_read(
 ** or some other error code on failure.
 */
 static int quec_write(
-        sqlite3_file *file_id,               /* File to write into */
-        const void *pBuf,               /* The bytes to be written */
-        int amt,                        /* Number of bytes to write */
-        sqlite3_int64 offset            /* Offset into the file to begin writing at */
-        ){
-    quec_file_t *file = (quec_file_t*)file_id;
+    sqlite3_file *file_id, /* File to write into */
+    const void *pBuf,      /* The bytes to be written */
+    int amt,               /* Number of bytes to write */
+    sqlite3_int64 offset   /* Offset into the file to begin writing at */
+)
+{
+    quec_file_t *file = (quec_file_t *)file_id;
     sqlite3_int64 new_offset;
     int w_cnt;
 
@@ -405,33 +399,21 @@ static int quec_write(
 
     new_offset = ql_fseek(file->fd, offset, SEEK_SET);
 
-    if (new_offset != offset)
+    if (new_offset < 0)
     {
         return SQLITE_IOERR_WRITE;
     }
 
-    do {
-        w_cnt = ql_fwrite((void *)pBuf, amt, 1, file->fd);
+    w_cnt = ql_fwrite((void *)pBuf, amt, 1, file->fd);
 
-        if (w_cnt == amt)
-        {
-            break;
-        }
-
-        if (w_cnt < 0)
-        {
-            return SQLITE_IOERR_WRITE;
-        }
-        else if (w_cnt > 0)
-        {
-            amt -= w_cnt;
-            pBuf = (void*)(w_cnt + (char*)pBuf);
-        }
-    } while (w_cnt > 0);
+    if (w_cnt < 0)
+    {
+        return SQLITE_IOERR_WRITE;
+    }
 
     if (w_cnt != amt)
     {
-        return SQLITE_FULL;
+        return SQLITE_IOERR_WRITE;
     }
 
     return SQLITE_OK;
@@ -440,7 +422,8 @@ static int quec_write(
 /*
 ** Truncate an open file to a specified size
 */
-static int quec_turncate(sqlite3_file *id, sqlite3_int64 nByte){
+static int quec_turncate(sqlite3_file *id, sqlite3_int64 nByte)
+{
     quec_file_t *file = (quec_file_t *)id;
     if (ql_ftruncate(file->fd, nByte) != 0)
     {
@@ -489,37 +472,6 @@ static int quec_sync(sqlite3_file *id, int flags){
 
     return SQLITE_OK;
 }
-
-/*
-** LOCKFILE_FAIL_IMMEDIATELY is undefined on some Windows systems.
-*/
-#ifndef LOCKFILE_FAIL_IMMEDIATELY
-# define LOCKFILE_FAIL_IMMEDIATELY 1
-#endif
-
-#ifndef LOCKFILE_EXCLUSIVE_LOCK
-# define LOCKFILE_EXCLUSIVE_LOCK 2
-#endif
-
-/*
-** Historically, SQLite has used both the LockFile and LockFileEx functions.
-** When the LockFile function was used, it was always expected to fail
-** immediately if the lock could not be obtained.  Also, it always expected to
-** obtain an exclusive lock.  These flags are used with the LockFileEx function
-** and reflect those expectations; therefore, they should not be changed.
-*/
-#ifndef SQLITE_LOCKFILE_FLAGS
-# define SQLITE_LOCKFILE_FLAGS   (LOCKFILE_FAIL_IMMEDIATELY | \
-                                  LOCKFILE_EXCLUSIVE_LOCK)
-#endif
-
-/*
-** Currently, SQLite never calls the LockFileEx function without wanting the
-** call to fail immediately if the lock cannot be obtained.
-*/
-#ifndef SQLITE_LOCKFILEEX_FLAGS
-# define SQLITE_LOCKFILEEX_FLAGS (LOCKFILE_FAIL_IMMEDIATELY)
-#endif
 
 
 /*
@@ -842,7 +794,14 @@ static int quec_close(sqlite3_file *id){
         file->fd = -1;
     }
 
-    return rc;
+    if (rc != 0)
+    {
+        return SQLITE_IOERR_CLOSE;
+    }
+    else
+    {
+        return SQLITE_OK;
+    }
 }
 
 
@@ -1035,6 +994,8 @@ static int quec_open(
         assert(zName[strlen(zName) + 1] == 0);
     }
 
+    sqlite3_log(0, "zName:%s", zName);
+
     /* Determine the value of the flags parameter passed to POSIX function
      ** open(). These must be calculated even if open() is not called, as
      ** they may be stored as part of the file handle and used by the
@@ -1142,11 +1103,13 @@ static int quec_full_path_name(
 
     zFull[nFull - 1] = '\0';
 
+    sqlite3_log(0, "zRelative:%s", zRelative);
+
     if (zRelative[0] == '/' ||
-        strncmp(zRelative, _UFS_ROOT, sizeof(_UFS_ROOT) == 0) ||
-        strncmp(zRelative, _EFS_ROOT, sizeof(_EFS_ROOT) == 0) ||
-        strncmp(zRelative, _SDFS_ROOT, sizeof(_SDFS_ROOT) == 0) ||
-        strncmp(zRelative, _SD1FS_ROOT, sizeof(_SD1FS_ROOT) == 0))
+        strncmp(zRelative, _UFS_ROOT, strlen(_UFS_ROOT)) == 0 ||
+        strncmp(zRelative, _EFS_ROOT, strlen(_EFS_ROOT)) == 0 ||
+        strncmp(zRelative, _SDFS_ROOT, strlen(_SDFS_ROOT)) == 0 ||
+        strncmp(zRelative, _SD1FS_ROOT, strlen(_SD1FS_ROOT)) == 0)
     {
         sqlite3_snprintf(nFull, zFull, "%s", zRelative);
     }
@@ -1160,6 +1123,8 @@ static int quec_full_path_name(
         nCwd = (int)strlen(zFull);
         sqlite3_snprintf(nFull - nCwd, &zFull[nCwd], "/%s", zRelative);
     }
+
+    sqlite3_log(0, "zFull:%s", zFull);
 
     return SQLITE_OK;
 }
@@ -1286,9 +1251,9 @@ static int quec_set_system_call(
   const char *zName,            /* Name of system call to override */
   sqlite3_syscall_ptr pNewFunc  /* Pointer to new system call value */
 ){
-  int rc = SQLITE_NOTFOUND;
+    int rc = SQLITE_NOTFOUND;
 
-  return rc;
+    return rc;
 }
 
 /*

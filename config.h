@@ -198,7 +198,7 @@
 #define SQLITE_OS_QUEC_RTOS 1
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #ifndef SQLITE_OS_CUS_WINDOWS
 #define SQLITE_OS_CUS_WINDOWS 1
 #endif
@@ -208,13 +208,15 @@
 //#define SQLITE_OS_RTTHREAD 1
 //#endif
 
+#elif 1
 #ifndef SQLITE_OS_QUEC_RTOS
 #define SQLITE_OS_QUEC_RTOS 1
 #endif
-
+#else
+#error "error config"
 #endif
 
-#endif
+#endif // SQLITE_OS_OTHER
 
 #if SQLITE_OS_CUS_WINDOWS
     #ifndef SQLITE_MUTEX_CUS_WINDOWS
