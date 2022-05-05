@@ -68,7 +68,7 @@ typedef struct
 {
     sqlite3_io_methods const *pMethod;
     sqlite3_vfs *pvfs;
-    int fd;
+    FILE * fd;
     int eFileLock;
     int szChunk;
     void * sem;
@@ -349,41 +349,27 @@ static int winRead(
     assert(offset >= 0);
     assert(cnt > 0);
 
-    new_offset = lseek(file->fd, offset, SEEK_SET);
+    new_offset = fseek(file->fd, offset, SEEK_SET);
 
-    if (new_offset != offset)
+    if (new_offset != 0)
     {
+
         return SQLITE_IOERR_READ;
     }
 
-    do {
-        r_cnt = read(file->fd, pBuf, amt);
 
-        if (r_cnt == amt)
-        {
-            break;
-        }
+    r_cnt = fread( pBuf, 1,amt,file->fd);
 
-        if (r_cnt < 0)
-        {
-            if (errno != EINTR)
-            {
-                return SQLITE_IOERR_READ;
-            }
 
-            r_cnt = 1;
-            continue;
-        }
-        else if (r_cnt > 0)
-        {
-            amt -= r_cnt;
-            pBuf = (void*)(r_cnt + (char*)pBuf);
-        }
-    } while (r_cnt > 0);
-
-    if (r_cnt != amt)
+    if (r_cnt < 0)
     {
-        memset(&((char*)pBuf)[r_cnt], 0, amt - r_cnt);
+
+        return SQLITE_IOERR_READ;
+    }
+
+    if (r_cnt == 0)
+    {
+        memset(pBuf, 0, amt);
         return SQLITE_IOERR_SHORT_READ;
     }
 
@@ -408,44 +394,28 @@ static int winWrite(
     assert(file_id);
     assert(cnt > 0);
 
-    new_offset = lseek(file->fd, offset, SEEK_SET);
+    new_offset = fseek(file->fd, offset, SEEK_SET);
 
-    if (new_offset != offset)
+    if (new_offset != 0)
     {
         return SQLITE_IOERR_WRITE;
     }
 
-    do {
-        w_cnt = write(file->fd, pBuf, amt);
 
-        if (w_cnt == amt)
-        {
-            break;
-        }
+    w_cnt = fwrite( pBuf, 1, amt, file->fd);
 
-        if (w_cnt < 0)
-        {
-            if (errno != EINTR)
-            {
-                return SQLITE_IOERR_WRITE;
-            }
+    if (w_cnt < 0)
+    {
 
-            w_cnt = 1;
-            continue;
-        }
-        else if (w_cnt > 0)
-        {
-            amt -= w_cnt;
-            pBuf = (void*)(w_cnt + (char*)pBuf);
-        }
-    } while (w_cnt > 0);
+        return SQLITE_IOERR_WRITE;
+
+    }
+
 
     if (w_cnt != amt)
     {
-        return SQLITE_FULL;
+        return SQLITE_IOERR_WRITE;
     }
-
-   
 
     return SQLITE_OK;
 }
@@ -461,20 +431,33 @@ static int winTruncate(sqlite3_file *id, sqlite3_int64 nByte){
 ** Determine the current size of a file in bytes
 */
 static int winFileSize(sqlite3_file *file_id, sqlite3_int64 *pSize){
-    int rc;
-    struct stat buf;
     winFile_t *file = (winFile_t*)file_id;
+    size_t file_size = 0;
 
+    int rc;
     assert(file_id);
 
-    rc = fstat(file->fd, &buf);
+    uint32_t cur = ftell(file->fd);
 
-    if (rc != 0)
+    rc = fseek(file->fd, 0L, SEEK_END);
+    if(rc != 0)
     {
         return SQLITE_IOERR_FSTAT;
     }
 
-    *pSize = buf.st_size;
+    file_size = ftell(file->fd);
+
+    if(file_size == -1)
+    {
+        return SQLITE_IOERR_FSTAT;
+    }
+
+    /*Restore file pointer*/
+    fseek(file->fd, cur, SEEK_SET);
+
+    *pSize = file_size;
+
+    
 
     /* When opening a zero-size database, the findInodeInfo() procedure
         ** writes a single byte into that file in order to work around a bug
@@ -495,7 +478,7 @@ static int winSync(sqlite3_file *id, int flags){
     assert((flags & 0x0F) == SQLITE_SYNC_NORMAL
            || (flags & 0x0F) == SQLITE_SYNC_FULL);
 
-//    fsync(file->fd);
+   fflush(file->fd);
 
     return SQLITE_OK;
 }
@@ -862,11 +845,21 @@ static int winClose(sqlite3_file *id){
     {
         winUnlock(id, NO_LOCK);
         CloseHandle(file->sem);
-        rc = close(file->fd);
+        rc = fclose(file->fd);
         file->fd = -1;
     }
 
-    return rc;
+    if(rc != 0)
+    {
+        return SQLITE_IOERR_CLOSE;
+
+    }
+    else
+    {
+        return SQLITE_OK;
+    }
+
+
 }
 
 
@@ -990,7 +983,7 @@ static int winOpen(
         int *pOutFlags            /* Status return flags */
         ){
     winFile_t *p;
-    int fd;
+    FILE * fd;
     int eType = flags & 0xFFFFFF00;  /* Type of file to open */
     int rc = SQLITE_OK;            /* Function Return Code */
     int openFlags = 0;
@@ -1055,6 +1048,8 @@ static int winOpen(
         assert(zName[strlen(zName) + 1] == 0);
     }
 
+    sqlite3_log(0, "zName:%s\n", zName);
+
     /* Determine the value of the flags parameter passed to POSIX function
         ** open(). These must be calculated even if open() is not called, as
         ** they may be stored as part of the file handle and used by the
@@ -1065,22 +1060,23 @@ static int winOpen(
     if (isExclusive) openFlags |= (O_EXCL /*| O_NOFOLLOW*/);
     openFlags |= (/*O_LARGEFILE |*/ O_BINARY);
 
-    // todo 后面改成fopen 兼容其他平台
-    fd = open(zName, openFlags, openMode);
-
-    if (fd < 0 && (errno != -EISDIR) && isReadWrite && !isExclusive)
+    if (isReadonly)
     {
-        /* Failed to open the file for read/write access. Try read-only. */
-        flags &= ~(SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE);
-        openFlags &= ~(O_RDWR | O_CREAT);
-        flags |= SQLITE_OPEN_READONLY;
-        openFlags |= O_RDONLY;
-        isReadonly = 1;
-        fd = open(zName, openFlags, openMode);
+        fd = fopen(zName, "rb");
+    }
+    else
+    {
+        fd = fopen(zName, "rb+");
     }
 
-    if (fd < 0)
+    if (fd <= 0 && isCreate)
     {
+        fd = fopen(zName, "wb+");
+    }
+
+    if (fd <= 0)
+    {
+        sqlite3_log(0, "errno:%d\n", errno);
         rc = SQLITE_ERROR;
         return rc;
     }
@@ -1123,7 +1119,7 @@ static int winDelete(
   int syncDir                 /* Not used on win32 */
 ){
   int rc = SQLITE_OK;            /* Function Return Code */
-  remove(zFilename);
+  unlink(zFilename);
   return rc;
 }
 
@@ -1230,6 +1226,7 @@ static int winFullPathname(
         nCwd = (int)strlen(zFull);
         sqlite3_snprintf(nFull - nCwd, &zFull[nCwd], "/%s", zRelative);
     }
+    sqlite3_log(0,"%s\n", zFull);
 
     return SQLITE_OK;
 
@@ -1403,7 +1400,7 @@ static const char *winNextSystemCall(sqlite3_vfs *p, const char *zName){
 int sqlite3_os_init(void){
 
     static sqlite3_vfs winVfs = {
-        3,                     /* iVersion */
+        0,                     /* iVersion */
         sizeof(winFile),       /* szOsFile */
         SQLITE_WIN32_MAX_PATH_BYTES, /* mxPathname */
         0,                     /* pNext */

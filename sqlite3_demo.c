@@ -23,6 +23,7 @@ WHEN				WHO			WHAT, WHERE, WHY
 
 #include "sqlite3.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 #ifndef _WIN32
 #include "ql_api_osi.h"
@@ -97,16 +98,23 @@ static void _sqlite3_demo_task(void *arg)
 
     while (1)
     {
-        rc = sqlite3_exec(db, "CREATE TABLE tble1(one text, two int);", callback, 0, &zErrMsg);
+        rc = sqlite3_exec(db, "create table tbl1(one text, two int);", callback, 0, &zErrMsg);
         if (rc != SQLITE_OK)
         {
             QL_SQLITE_DEMO_LOG("SQL error: %s", zErrMsg);
             sqlite3_free(zErrMsg);
+            break;
         }
 
-        break;
+        rc = sqlite3_exec(db, "insert into tbl1 values('hello!',10);", callback, 0, &zErrMsg);
+        if (rc != SQLITE_OK)
+        {
+            QL_SQLITE_DEMO_LOG("SQL error: %s", zErrMsg);
+            sqlite3_free(zErrMsg);
+            break;
+        }
 
-        rc = sqlite3_exec(db, "SELECT * FROM tble1;", callback, 0, &zErrMsg);
+        rc = sqlite3_exec(db, "select * from tbl1;", callback, 0, &zErrMsg);
         if (rc != SQLITE_OK)
         {
             QL_SQLITE_DEMO_LOG("SQL error: %s", zErrMsg);

@@ -22,7 +22,7 @@ int main(int argc, char **argv)
     getcwd(buff,128);
     printf("pwd:%s\n", buff);
     wmain(argc, (wchar_t **)argv);
-//    sqlite3_demo_init();
+    sqlite3_demo_init();
     return 0;
 }
 
