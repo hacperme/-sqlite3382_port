@@ -29,10 +29,13 @@ WHEN				WHO			WHAT, WHERE, WHY
 #include "ql_api_osi.h"
 #include "ql_log.h"
 #include "ql_api_dev.h"
+#include "ql_sdmmc.h"
 
 #define QL_SQLITE_DEMO_LOG(msg, ...)			    QL_LOG(QL_LOG_LEVEL_INFO, "sqlite_demo", msg, ##__VA_ARGS__)
 
 ql_task_t sqlite3_demo_task = NULL;
+#define SDEMMC_TEST 1
+
 #else
 #define QL_SQLITE_DEMO_LOG(msg, ...)			    printf(msg, ##__VA_ARGS__)
 #endif
@@ -95,7 +98,21 @@ static void _sqlite3_demo_task(void *arg)
 
     print_heap_info();
 #ifndef _WIN32
+#if SDEMMC_TEST
+    while (1)
+    {
+        if(ql_sdmmc_is_mount())
+        {
+            break;
+        }
+        ql_rtos_task_sleep_s(1);
+    }
+    
+    rc = sqlite3_open("SD:123.db", &db);
+#else
+
     rc = sqlite3_open("UFS:/123.db", &db);
+#endif
 #else
     rc = sqlite3_open("123.db", &db);
 #endif
