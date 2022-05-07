@@ -2,7 +2,7 @@
 # All rights reserved.
 #
 
-set(target ql_app_sqlite)
+set(target ql_sqlite)
 
 add_library(${target} STATIC)
 set_target_properties(${target} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${out_app_lib_dir})
@@ -13,7 +13,7 @@ target_include_directories(${target} PUBLIC . port)
 target_sources(${target} PRIVATE
 	sqlite3.c
 	port/os_quec_rtos.c
-	sqlite3_demo.c
+	# sqlite3_demo.c
 )
 
 relative_glob(srcs include/*.h src/*.c inc/*.h)
