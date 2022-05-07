@@ -13,11 +13,16 @@
 #include <process.h>
 #endif
 
+extern int  wmain(int argc, wchar_t **wargv);
+extern void sqlite3_demo_init(void);
+
 int main(int argc, char **argv)
 {
     char buff[128] = {0};
     getcwd(buff,128);
     printf("pwd:%s\n", buff);
-    wmain(argc, argv);
+    wmain(argc, (wchar_t **)argv);
+    sqlite3_demo_init();
     return 0;
 }
+
