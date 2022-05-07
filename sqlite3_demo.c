@@ -24,6 +24,7 @@ WHEN				WHO			WHAT, WHERE, WHY
 #include "sqlite3.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifndef _WIN32
 #include "ql_api_osi.h"
@@ -37,6 +38,7 @@ ql_task_t sqlite3_demo_task = NULL;
 #define SDEMMC_TEST 1
 
 #else
+#include <windows.h>
 #define QL_SQLITE_DEMO_LOG(msg, ...)			    printf(msg, ##__VA_ARGS__)
 #endif
 
@@ -89,25 +91,28 @@ static void print_heap_info(void)
     return;
 }
 
-static void _sqlite3_demo_task(void *arg)
+static void sqlite3_stress_test(void)
 {
     sqlite3 *db = NULL;
     char *zErrMsg = 0;
-    sqlite3_init();
     int rc;
 
+    char sql_data[128] = {0};
+    unsigned int cnt = 0;
+
     print_heap_info();
+
 #ifndef _WIN32
 #if SDEMMC_TEST
     while (1)
     {
-        if(ql_sdmmc_is_mount())
+        if (ql_sdmmc_is_mount())
         {
             break;
         }
         ql_rtos_task_sleep_s(1);
     }
-    
+
     rc = sqlite3_open("SD:123.db", &db);
 #else
 
@@ -116,7 +121,93 @@ static void _sqlite3_demo_task(void *arg)
 #else
     rc = sqlite3_open("123.db", &db);
 #endif
-    if(rc)
+
+    if (rc)
+    {
+        QL_SQLITE_DEMO_LOG("sqlite3_open rc:%d", rc);
+        sqlite3_close(db);
+        goto exit;
+    }
+
+    while (1)
+    {
+        QL_SQLITE_DEMO_LOG("run cnt: %u\n", cnt);
+        memset(sql_data, 0, sizeof(sql_data));
+
+        snprintf(sql_data, sizeof(sql_data), "insert into tbl1 values('item_%u',%u);", cnt, cnt);
+
+        rc = sqlite3_exec(db, sql_data, callback, 0, &zErrMsg);
+        if (rc != SQLITE_OK)
+        {
+            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc, zErrMsg);
+            sqlite3_free(zErrMsg);
+            break;
+        }
+
+        print_heap_info();
+
+        rc = sqlite3_exec(db, "select * from tbl1 limit 2;", callback, 0, &zErrMsg);
+        if (rc != SQLITE_OK)
+        {
+            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc, zErrMsg);
+            sqlite3_free(zErrMsg);
+            break;
+        }
+
+        print_heap_info();
+
+#ifndef _WIN32
+        ql_rtos_task_sleep_s(1);
+#else
+
+        Sleep(1000);
+#endif
+
+        cnt++;
+    }
+
+    sqlite3_close(db);
+
+    print_heap_info();
+
+exit:
+
+    print_heap_info();
+
+    return;
+
+}
+
+static void _sqlite3_demo_task(void *arg)
+{
+    sqlite3 *db = NULL;
+    char *zErrMsg = 0;
+
+    int rc;
+
+    sqlite3_init();
+
+    print_heap_info();
+#ifndef _WIN32
+#if SDEMMC_TEST
+    while (1)
+    {
+        if (ql_sdmmc_is_mount())
+        {
+            break;
+        }
+        ql_rtos_task_sleep_s(1);
+    }
+
+    rc = sqlite3_open("SD:123.db", &db);
+#else
+
+    rc = sqlite3_open("UFS:/123.db", &db);
+#endif
+#else
+    rc = sqlite3_open("123.db", &db);
+#endif
+    if (rc)
     {
         QL_SQLITE_DEMO_LOG("sqlite3_open rc:%d", rc);
         sqlite3_close(db);
@@ -150,7 +241,7 @@ static void _sqlite3_demo_task(void *arg)
         rc = sqlite3_exec(db, "create table tbl1(one text, two int);", callback, 0, &zErrMsg);
         if (rc != SQLITE_OK)
         {
-            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc,zErrMsg);
+            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc, zErrMsg);
             sqlite3_free(zErrMsg);
             break;
         }
@@ -160,7 +251,7 @@ static void _sqlite3_demo_task(void *arg)
         rc = sqlite3_exec(db, "insert into tbl1 values('hello!',10);", callback, 0, &zErrMsg);
         if (rc != SQLITE_OK)
         {
-            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc,zErrMsg);
+            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc, zErrMsg);
             sqlite3_free(zErrMsg);
             break;
         }
@@ -170,7 +261,7 @@ static void _sqlite3_demo_task(void *arg)
         rc = sqlite3_exec(db, "select * from tbl1;", callback, 0, &zErrMsg);
         if (rc != SQLITE_OK)
         {
-            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc,zErrMsg);
+            QL_SQLITE_DEMO_LOG("(%d)SQL error: %s", rc, zErrMsg);
             sqlite3_free(zErrMsg);
         }
 
@@ -183,6 +274,7 @@ static void _sqlite3_demo_task(void *arg)
 
     print_heap_info();
 
+    sqlite3_stress_test();
 
 exit:
 
@@ -190,7 +282,6 @@ exit:
     ql_rtos_task_delete(NULL);
 #endif
     return;
-    
 }
 
 void sqlite3_demo_init(void)
