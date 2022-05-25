@@ -194,9 +194,7 @@
 #endif
 
 #if SQLITE_OS_OTHER
-#ifndef SQLITE_OS_QUEC_RTOS
-#define SQLITE_OS_QUEC_RTOS 1
-#endif
+
 
 #if defined(_WIN32)
 #ifndef SQLITE_OS_CUS_WINDOWS

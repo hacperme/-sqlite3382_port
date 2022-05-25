@@ -15,7 +15,9 @@ static void raw_realloc(Raw *raw_) {
   raw_->data_ = realloc(raw_->data_, sizeof(double) * raw_->data_size_);
   if (!raw_->data_) {
     fprintf(stderr, "realloc failed\n");
+    #ifndef SQLITE_OS_QUEC_RTOS
     exit(1);
+    #endif
   }
 }
 

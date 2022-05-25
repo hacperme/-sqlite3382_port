@@ -184,10 +184,14 @@ int benchmark_main(int argc, char** argv) {
       FLAGS_db = argv[i] + 5;
     } else if (!strcmp(argv[i], "--help")) {
       print_usage(argv[0]);
+      #ifndef SQLITE_OS_QUEC_RTOS
       exit(0);
+      #endif
     } else {
       fprintf(stderr, "Invalid flag '%s'\n", argv[i]);
+      #ifndef SQLITE_OS_QUEC_RTOS
       exit(1);
+      #endif
     }
   }
 

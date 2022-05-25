@@ -68,7 +68,7 @@ uint32_t rand_uniform(Random* rand_, int n) { return rand_next(rand_) % n; }
 
 void rand_gen_init(RandomGenerator* gen_, double compression_ratio) {
   Random rnd;
-  char* piece;
+  char* piece = NULL;
   
   gen_->data_ = malloc(sizeof(char) * 1048576);
   gen_->data_size_ = 0;
@@ -82,7 +82,10 @@ void rand_gen_init(RandomGenerator* gen_, double compression_ratio) {
     gen_->data_size_ += strlen(piece);
   }
 
-  free(piece);
+  if(piece)
+  {
+    free(piece);
+  }
 }
 
 char* rand_gen_generate(RandomGenerator* gen_, int len) {

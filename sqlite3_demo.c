@@ -275,6 +275,8 @@ static void _sqlite3_demo_task(void *arg)
     print_heap_info();
 
     sqlite3_stress_test();
+    extern int benchmark_main(int argc, char** argv);
+//    benchmark_main(0, NULL);
 
 exit:
 

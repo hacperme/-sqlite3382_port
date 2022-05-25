@@ -7,13 +7,24 @@ set(target ql_sqlite)
 add_library(${target} STATIC)
 set_target_properties(${target} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${out_app_lib_dir})
 target_compile_definitions(${target} PRIVATE OSI_LOG_TAG=LOG_TAG_QUEC)
-target_include_directories(${target} PUBLIC . port)
+target_include_directories(${target} PUBLIC . port sqlite-bench)
 #target_link_libraries(${target} PRIVATE kernel driver ql_api_common)
+
+target_link_libraries(${target} PRIVATE
+	# ${libgcc_file_name}
+	${libc_file_name}
+	)
 
 target_sources(${target} PRIVATE
 	sqlite3.c
 	port/os_quec_rtos.c
-	# sqlite3_demo.c
+	sqlite-bench/bench_main.c
+	sqlite-bench/benchmark.c
+	sqlite-bench/histogram.c
+	sqlite-bench/random.c
+	sqlite-bench/raw.c
+	sqlite-bench/util.c
+	#sqlite3_demo.c
 )
 
 relative_glob(srcs include/*.h src/*.c inc/*.h)

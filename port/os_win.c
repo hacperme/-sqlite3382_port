@@ -1048,7 +1048,7 @@ static int winOpen(
         assert(zName[strlen(zName) + 1] == 0);
     }
 
-    sqlite3_log(0, "zName:%s\n", zName);
+//    sqlite3_log(0, "zName:%s\n", zName);
 
     /* Determine the value of the flags parameter passed to POSIX function
         ** open(). These must be calculated even if open() is not called, as
@@ -1226,7 +1226,7 @@ static int winFullPathname(
         nCwd = (int)strlen(zFull);
         sqlite3_snprintf(nFull - nCwd, &zFull[nCwd], "/%s", zRelative);
     }
-    sqlite3_log(0,"%s\n", zFull);
+//    sqlite3_log(0,"%s\n", zFull);
 
     return SQLITE_OK;
 

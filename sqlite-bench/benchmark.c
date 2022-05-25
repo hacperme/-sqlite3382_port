@@ -42,7 +42,9 @@ static void exec_error_check(int status, char *err_msg) {
   if (status != SQLITE_OK) {
     fprintf(stderr, "SQL error: %s\n", err_msg);
     sqlite3_free(err_msg);
+    #ifndef SQLITE_OS_QUEC_RTOS
     exit(1);
+    #endif
   }
 }
 
@@ -50,7 +52,9 @@ inline
 static void step_error_check(int status) {
   if (status != SQLITE_DONE) {
     fprintf(stderr, "SQL step error: status = %d\n", status);
+    #ifndef SQLITE_OS_QUEC_RTOS
     exit(1);
+    #endif
   }
 }
 
@@ -58,7 +62,9 @@ inline
 static void error_check(int status) {
   if (status != SQLITE_OK) {
     fprintf(stderr, "sqlite3 error: status = %d\n", status);
+    #ifndef SQLITE_OS_QUEC_RTOS
     exit(1);
+    #endif
   }
 }
 
@@ -223,7 +229,7 @@ void benchmark_init() {
   bytes_ = 0;
   rand_gen_init(&gen_, FLAGS_compression_ratio);
   rand_init(&rand_, 301);;
-
+#ifndef SQLITE_OS_QUEC_RTOS
   struct dirent* ep;
   DIR* test_dir = opendir(FLAGS_db);
   if (!FLAGS_use_existing_db) {
@@ -237,6 +243,7 @@ void benchmark_init() {
     }
   }
   closedir(test_dir);
+#endif
 }
 
 void benchmark_fini() {
@@ -334,7 +341,9 @@ void benchmark_open() {
   status = sqlite3_open(file_name, &db_);
   if (status) {
     fprintf(stderr, "open error: %s\n", sqlite3_errmsg(db_));
+    #ifndef SQLITE_OS_QUEC_RTOS
     exit(1);
+    #endif
   }
 
   /* Change SQLite cache size */

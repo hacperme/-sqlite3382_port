@@ -5,9 +5,14 @@
 #ifndef BENCH_H_
 #define BENCH_H_
 
+#include "config.h"
+
 #include <assert.h>
 #include <ctype.h>
+#ifndef SQLITE_OS_QUEC_RTOS
 #include <dirent.h>
+#endif
+
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>

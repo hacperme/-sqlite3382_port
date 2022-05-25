@@ -21,3 +21,8 @@ HEADERS += \
     sqlite-bench/bench.h \
     sqlite3.h \
     sqlite3ext.h
+
+INCLUDEPATH += \
+    . \
+    port \
+    sqlite-bench\
