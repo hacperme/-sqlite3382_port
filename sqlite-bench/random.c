@@ -35,6 +35,11 @@ static char *compressible_string(Random* rnd, double compressed_fraction,
     pos += raw_data_len;
   }
 
+  if(raw_data)
+  {
+    free(raw_data);
+  }
+
   return dst;
 }
 
@@ -70,16 +75,24 @@ void rand_gen_init(RandomGenerator* gen_, double compression_ratio) {
   Random rnd;
   char* piece = NULL;
   
-  gen_->data_ = malloc(sizeof(char) * 1048576);
+//  gen_->data_ = malloc(sizeof(char) * 1048576);
+  gen_->data_ = malloc(sizeof(char) * 10*1024);
   gen_->data_size_ = 0;
   gen_->pos_ = 0;
   (gen_->data_)[0] = '\0';
 
   rand_init(&rnd, 301);
-  while (gen_->data_size_ < 1048576) {
+//   while ((gen_->data_size_+100) < 1048576) {
+  while ((gen_->data_size_+100) < 10*1024) {
     piece = compressible_string(&rnd, compression_ratio, 100);
     strcat(gen_->data_, piece);
     gen_->data_size_ += strlen(piece);
+    free(piece);
+    piece = NULL;
+    #ifdef SQLITE_OS_QUEC_RTOS
+    ql_dev_feed_wdt();
+    ql_rtos_task_sleep_ms(20);
+    #endif
   }
 
   if(piece)

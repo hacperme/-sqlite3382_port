@@ -14,7 +14,7 @@ static void raw_realloc(Raw *raw_) {
   raw_->data_size_ *= 2;
   raw_->data_ = realloc(raw_->data_, sizeof(double) * raw_->data_size_);
   if (!raw_->data_) {
-    fprintf(stderr, "realloc failed\n");
+    SQLITE_BENCHMARK_LOG(stderr, "realloc failed\n");
     #ifndef SQLITE_OS_QUEC_RTOS
     exit(1);
     #endif
@@ -25,6 +25,13 @@ void raw_clear(Raw *raw_) {
   if (raw_->data_)
     free(raw_->data_);
   raw_calloc(raw_);
+}
+
+void raw_free(Raw *raw_) {
+  if (raw_->data_)
+    free(raw_->data_);
+  raw_->data_size_ = 0;
+  raw_->pos_ = 0;
 }
 
 void raw_add(Raw *raw_, double value) {
@@ -57,7 +64,7 @@ char* raw_to_string(Raw *raw_) {
 void raw_print(FILE *stream, Raw *raw_) {
   if (!raw_->data_)
     raw_calloc(raw_);
-  fprintf(stream, "num,time\n");
+  SQLITE_BENCHMARK_LOG(stream, "num,time\n");
   for (int i = 0; i < raw_->pos_; i++)
-    fprintf(stream, "%d,%.4f\n", i, raw_->data_[i]);
+    SQLITE_BENCHMARK_LOG(stream, "%d,%.4f\n", i, raw_->data_[i]);
 }

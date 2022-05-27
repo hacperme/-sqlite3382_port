@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 //    wmain(argc, (wchar_t **)argv);
 
     sqlite3_demo_init();
-    benchmark_main(argc, argv);
+//    benchmark_main(argc, argv);
     return 0;
 }
 

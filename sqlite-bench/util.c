@@ -5,10 +5,17 @@
 #include "bench.h"
 
 uint64_t now_micros() {
+#ifdef SQLITE_OS_QUEC_RTOS
+  ql_timeval_t time;
+  ql_gettimeofday(&time);
+
+  return (time.sec * 1000000 + time.usec);
+#else
   struct timeval tv;
   gettimeofday(&tv, NULL);
 
   return (uint64_t)(tv.tv_sec * 1000000 + tv.tv_usec);
+#endif
 }
 
 /*

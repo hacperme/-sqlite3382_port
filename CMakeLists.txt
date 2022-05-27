@@ -10,10 +10,6 @@ target_compile_definitions(${target} PRIVATE OSI_LOG_TAG=LOG_TAG_QUEC)
 target_include_directories(${target} PUBLIC . port sqlite-bench)
 #target_link_libraries(${target} PRIVATE kernel driver ql_api_common)
 
-target_link_libraries(${target} PRIVATE
-	# ${libgcc_file_name}
-	${libc_file_name}
-	)
 
 target_sources(${target} PRIVATE
 	sqlite3.c
@@ -24,7 +20,7 @@ target_sources(${target} PRIVATE
 	sqlite-bench/random.c
 	sqlite-bench/raw.c
 	sqlite-bench/util.c
-	#sqlite3_demo.c
+	sqlite3_demo.c
 )
 
 relative_glob(srcs include/*.h src/*.c inc/*.h)

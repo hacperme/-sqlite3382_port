@@ -40,7 +40,7 @@ static void stop(const char *name);
 inline
 static void exec_error_check(int status, char *err_msg) {
   if (status != SQLITE_OK) {
-    fprintf(stderr, "SQL error: %s\n", err_msg);
+    SQLITE_BENCHMARK_LOG(stderr, "SQL error: %s\n", err_msg);
     sqlite3_free(err_msg);
     #ifndef SQLITE_OS_QUEC_RTOS
     exit(1);
@@ -51,7 +51,7 @@ static void exec_error_check(int status, char *err_msg) {
 inline
 static void step_error_check(int status) {
   if (status != SQLITE_DONE) {
-    fprintf(stderr, "SQL step error: status = %d\n", status);
+    SQLITE_BENCHMARK_LOG(stderr, "SQL step error: status = %d\n", status);
     #ifndef SQLITE_OS_QUEC_RTOS
     exit(1);
     #endif
@@ -61,7 +61,7 @@ static void step_error_check(int status) {
 inline
 static void error_check(int status) {
   if (status != SQLITE_OK) {
-    fprintf(stderr, "sqlite3 error: status = %d\n", status);
+    SQLITE_BENCHMARK_LOG(stderr, "sqlite3 error: status = %d\n", status);
     #ifndef SQLITE_OS_QUEC_RTOS
     exit(1);
     #endif
@@ -80,34 +80,44 @@ static void wal_checkpoint(sqlite3* db_) {
 static void print_header() {
   const int kKeySize = 16;
   print_environment();
-  fprintf(stderr, "Keys:       %d bytes each\n", kKeySize);
-  fprintf(stderr, "Values:     %d bytes each\n", FLAGS_value_size);  
-  fprintf(stderr, "Entries:    %d\n", num_);
-  fprintf(stderr, "RawSize:    %.1f MB (estimated)\n",
+  SQLITE_BENCHMARK_LOG(stderr, "Keys:       %d bytes each\n", kKeySize);
+  SQLITE_BENCHMARK_LOG(stderr, "Values:     %d bytes each\n", FLAGS_value_size);  
+  SQLITE_BENCHMARK_LOG(stderr, "Entries:    %d\n", num_);
+  if(((int64_t)(kKeySize + FLAGS_value_size) * num_) > 1048576.0)
+  {
+    SQLITE_BENCHMARK_LOG(stderr, "RawSize:    %.1f MB (estimated)\n",
             (((int64_t)(kKeySize + FLAGS_value_size) * num_)
             / 1048576.0));
+  }
+  else
+  {
+    SQLITE_BENCHMARK_LOG(stderr, "RawSize:    %.1f KB (estimated)\n",
+            (((int64_t)(kKeySize + FLAGS_value_size) * num_)
+            / 1024.0));
+  }
+  
   print_warnings();
-  fprintf(stderr, "------------------------------------------------\n");
+  SQLITE_BENCHMARK_LOG(stderr, "------------------------------------------------\n");
 }
 
 static void print_warnings() {
 #if defined(__GNUC__) && !defined(__OPTIMIZE__)
-  fprintf(stderr,
+  SQLITE_BENCHMARK_LOG(stderr,
       "WARNING: Optimization is disabled: benchmarks unnecessarily slow\n"
       );
 #endif
 #ifndef NDEBUG
-  fprintf(stderr,
+  SQLITE_BENCHMARK_LOG(stderr,
       "WARNING: Assertions are enabled: benchmarks unnecessarily slow\n"
       );
 #endif
 }
 
 static void print_environment() {
-  fprintf(stderr, "SQLite:     version %s\n", SQLITE_VERSION);
+  SQLITE_BENCHMARK_LOG(stderr, "SQLite:     version %s\n", SQLITE_VERSION);
 #if defined(__linux)
   time_t now = time(NULL);
-  fprintf(stderr, "Date:       %s", ctime(&now));
+  SQLITE_BENCHMARK_LOG(stderr, "Date:       %s", ctime(&now));
 
   FILE* cpuinfo = fopen("/proc/cpuinfo", "r");
   if (cpuinfo != NULL) {
@@ -138,8 +148,8 @@ static void print_environment() {
       free(trimed_val);
     }
     fclose(cpuinfo);
-    fprintf(stderr, "CPU:        %d * %s\n", num_cpus, cpu_type);
-    fprintf(stderr, "CPUCache:   %s\n", cache_size);
+    SQLITE_BENCHMARK_LOG(stderr, "CPU:        %d * %s\n", num_cpus, cpu_type);
+    SQLITE_BENCHMARK_LOG(stderr, "CPUCache:   %s\n", cache_size);
     free(cpu_type);
     free(cache_size);
   }
@@ -149,6 +159,10 @@ static void print_environment() {
 static void start() {
   start_ =  now_micros() * 1e-6;
   bytes_ = 0;
+  if(message_)
+  {
+    free(message_);
+  }
   message_ = malloc(sizeof(char) * 10000);
   strcpy(message_, "");
   last_op_finish_ = start_;
@@ -165,8 +179,10 @@ void finished_single_op() {
     if (FLAGS_histogram) {
       histogram_add(&hist_, micros);
       if (micros > 20000) {
-        fprintf(stderr, "long op: %.1f micros%30s\r", micros, "");
+        SQLITE_BENCHMARK_LOG(stderr, "long op: %.1f micros%30s\r", micros, "");
+        #ifndef SQLITE_OS_QUEC_RTOS
         fflush(stderr);
+        #endif
       }
     }
     if (FLAGS_raw) {
@@ -184,9 +200,14 @@ void finished_single_op() {
     else if (next_report_ < 100000) next_report_ += 10000;
     else if (next_report_ < 500000) next_report_ += 50000;
     else                            next_report_ += 100000;
-    fprintf(stderr, "... finished %d ops%30s\r", done_, "");
+    SQLITE_BENCHMARK_LOG(stderr, "... finished %d ops%30s\r", done_, "");
+#ifndef SQLITE_OS_QUEC_RTOS
     fflush(stderr);
+#endif
   }
+#ifdef SQLITE_OS_QUEC_RTOS
+  ql_dev_feed_wdt();
+#endif
 }
 
 static void stop(const char* name) {
@@ -195,30 +216,55 @@ static void stop(const char* name) {
   if (done_ < 1) done_ = 1;
 
   if (bytes_ > 0) {
-    char *rate = malloc(sizeof(char) * 100);;
-    snprintf(rate, strlen(rate), "%6.1f MB/s",
-              (bytes_ / 1048576.0) / (finish - start_));
+    char *rate = malloc(sizeof(char) * 100);
+    memset(rate, 0, sizeof(char) * 100);
+    if(bytes_ >= 1048576)
+    {
+        snprintf(rate, sizeof(char) * 100-1, "%6.1f MB/s",
+                  (bytes_ / 1048576.0) / (finish - start_));
+    }
+    else
+    {
+        snprintf(rate, sizeof(char) * 100-1, "%6.1f KB/s",
+                  (bytes_ / 1024.0) / (finish - start_));
+    }
+
     if (message_ && !strcmp(message_, "")) {
       message_ = strcat(strcat(rate, " "), message_);
+      free(rate);
     } else {
+      if(message_)
+      {
+        free(message_);
+      }
       message_ = rate;
     }
   }
 
-  fprintf(stderr, "%-12s : %11.3f micros/op;%s%s\n",
+  SQLITE_BENCHMARK_LOG(stderr, "%-12s : %11.3f micros/op;%s%s\n",
           name,
           (finish - start_) * 1e6 / done_,
           (!message_ || !strcmp(message_, "") ? "" : " "),
           (!message_) ? "" : message_);
+  if(message_)
+  {
+    free(message_);
+    message_ = NULL;
+  }
   if (FLAGS_raw) {
     raw_print(stdout, &raw_);
+    raw_free(&raw_);
   }
   if (FLAGS_histogram) {
-    fprintf(stderr, "Microseconds per op:\n%s\n",
-            histogram_to_string(&hist_));
+    char *data = histogram_to_string(&hist_);
+    SQLITE_BENCHMARK_LOG(stderr, "Microseconds per op:\n%s\n",
+            data);
+    free(data);
   }
+#ifndef SQLITE_OS_QUEC_RTOS
   fflush(stdout);
   fflush(stderr);
+#endif
 }
 
 void benchmark_init() {
@@ -230,19 +276,30 @@ void benchmark_init() {
   rand_gen_init(&gen_, FLAGS_compression_ratio);
   rand_init(&rand_, 301);;
 #ifndef SQLITE_OS_QUEC_RTOS
-  struct dirent* ep;
-  DIR* test_dir = opendir(FLAGS_db);
+
   if (!FLAGS_use_existing_db) {
-    while ((ep = readdir(test_dir)) != NULL) {
-      if (starts_with(ep->d_name, "dbbench_sqlite3")) {
-        char file_name[1000];
-        strcpy(file_name, FLAGS_db);
-        strcat(file_name, ep->d_name);
-        remove(file_name);
+      struct dirent* ep;
+      DIR* test_dir = opendir(FLAGS_db);
+      while ((ep = readdir(test_dir)) != NULL) {
+          if (starts_with(ep->d_name, "dbbench_sqlite3")) {
+              char file_name[1000];
+              strcpy(file_name, FLAGS_db);
+              strcat(file_name, ep->d_name);
+              remove(file_name);
+          }
       }
-    }
+      closedir(test_dir);
+      rmdir(FLAGS_db);
   }
-  closedir(test_dir);
+  mkdir(FLAGS_db);
+#else
+  if (!FLAGS_use_existing_db) {
+
+    ql_rmdir_ex(FLAGS_db);
+  }
+
+  ql_mkdir(FLAGS_db, 0);
+
 #endif
 }
 
@@ -315,7 +372,7 @@ void benchmark_run() {
     } else {
       known = false;
       if (strcmp(name, "")) {
-        fprintf(stderr, "unknown benchmark '%s'\n", name);
+        SQLITE_BENCHMARK_LOG(stderr, "unknown benchmark '%s'\n", name);
       }
     }
     if (known) {
@@ -340,11 +397,14 @@ void benchmark_open() {
             db_num_);
   status = sqlite3_open(file_name, &db_);
   if (status) {
-    fprintf(stderr, "open error: %s\n", sqlite3_errmsg(db_));
+    SQLITE_BENCHMARK_LOG(stderr, "open error: %s\n", sqlite3_errmsg(db_));
     #ifndef SQLITE_OS_QUEC_RTOS
     exit(1);
     #endif
   }
+#ifdef SQLITE_OS_QUEC_RTOS
+  ql_dev_feed_wdt();
+#endif
 
   /* Change SQLite cache size */
   char cache_size[100];
@@ -383,6 +443,9 @@ void benchmark_open() {
   for (int i = 0; i < stmt_array_length; i++) {
     status = sqlite3_exec(db_, stmt_array[i], NULL, NULL, &err_msg);
     exec_error_check(status, err_msg);
+#ifdef SQLITE_OS_QUEC_RTOS
+    ql_dev_feed_wdt();
+#endif
   }
 }
 
@@ -391,6 +454,10 @@ void benchmark_write(bool write_sync, int order, int state,
   /* Create new database if state == FRESH */
   if (state == FRESH) {
     if (FLAGS_use_existing_db) {
+      if(message_)
+      {
+        free(message_);
+      }
       message_ = malloc(sizeof(char) * 100);
       strcpy(message_, "skipping (--use_existing_db is true)");
       return;
@@ -404,6 +471,10 @@ void benchmark_write(bool write_sync, int order, int state,
   if (num_entries != num_) {
     char* msg = malloc(sizeof(char) * 100);
     snprintf(msg, 100, "(%d ops)", num_entries);
+    if(message_)
+    {
+      free(message_);
+    }
     message_ = msg;
   }
 
@@ -441,9 +512,16 @@ void benchmark_write(bool write_sync, int order, int state,
       status = sqlite3_reset(begin_trans_stmt);
       error_check(status);
     }
+#ifdef SQLITE_OS_QUEC_RTOS
+    ql_dev_feed_wdt();
+#endif
 
     /* Create and execute SQL statements */
     for (int j = 0; j < entries_per_batch; j++) {
+
+#ifdef SQLITE_OS_QUEC_RTOS
+      ql_dev_feed_wdt();
+#endif
       const char* value = rand_gen_generate(&gen_, value_size);
 
       /* Create values for key-value pair */
@@ -453,10 +531,11 @@ void benchmark_write(bool write_sync, int order, int state,
       snprintf(key, sizeof(key), "%016d", k);
 
       /* Bind KV values into replace_stmt */
-      status = sqlite3_bind_blob(replace_stmt, 1, key, 16, SQLITE_STATIC);
+      status = sqlite3_bind_blob(replace_stmt, 1, key, 16, SQLITE_TRANSIENT);
       error_check(status);
       status = sqlite3_bind_blob(replace_stmt, 2, value,
-                                  value_size, SQLITE_STATIC);
+                                  value_size, SQLITE_TRANSIENT);
+      free((void *)value);
       error_check(status);
 
       /* Execute replace_stmt */
@@ -511,6 +590,9 @@ void benchmark_read(int order, int entries_per_batch) {
 
   bool transaction = (entries_per_batch > 1);
   for (int i = 0; i < reads_; i += entries_per_batch) {
+#ifdef SQLITE_OS_QUEC_RTOS
+    ql_dev_feed_wdt();
+#endif
     /* Begin read transaction */
     if (FLAGS_transaction && transaction) {
       status = sqlite3_step(begin_trans_stmt);
@@ -521,13 +603,17 @@ void benchmark_read(int order, int entries_per_batch) {
 
     /* Create and execute SQL statements */
     for (int j = 0; j < entries_per_batch; j++) {
+
+#ifdef SQLITE_OS_QUEC_RTOS
+      ql_dev_feed_wdt();
+#endif
       /* Create key value */
       char key[100];
       int k = (order == SEQUENTIAL) ? i + j : (rand_next(&rand_) % reads_);
       snprintf(key, sizeof(key), "%016d", k);
 
       /* Bind key value into read_stmt */
-      status = sqlite3_bind_blob(read_stmt, 1, key, 16, SQLITE_STATIC);
+      status = sqlite3_bind_blob(read_stmt, 1, key, 16, SQLITE_TRANSIENT);
       error_check(status);
       
       /* Execute read statement */

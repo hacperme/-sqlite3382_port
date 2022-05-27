@@ -99,8 +99,8 @@ static void init(void) {
   FLAGS_histogram = false;
   FLAGS_raw = false,
   FLAGS_compression_ratio = 0.5;
-  FLAGS_page_size = 1024;
-  FLAGS_num_pages = 4096;
+  FLAGS_page_size = 4096;
+  FLAGS_num_pages = 512;
   FLAGS_use_existing_db = false;
   FLAGS_transaction = true;
   FLAGS_WAL_enabled = true;
@@ -108,45 +108,50 @@ static void init(void) {
 }
 
 static void print_usage(const char* argv0) {
-  fprintf(stderr, "Usage: %s [OPTION]...\n", argv0);
-  fprintf(stderr, "SQLite3 benchmark tool\n");
-  fprintf(stderr, "[OPTION]\n");
-  fprintf(stderr, "  --benchmarks=[BENCH]\t\tspecify benchmark\n");
-  fprintf(stderr, "  --histogram={0,1}\t\trecord histogram\n");
-  fprintf(stderr, "  --raw={0,1}\t\t\toutput raw data\n");
-  fprintf(stderr, "  --compression_ratio=DOUBLE\tcompression ratio\n");
-  fprintf(stderr, "  --use_existing_db={0,1}\tuse existing database\n");
-  fprintf(stderr, "  --num=INT\t\t\tnumber of entries\n");
-  fprintf(stderr, "  --reads=INT\t\t\tnumber of reads\n");
-  fprintf(stderr, "  --value_size=INT\t\tvalue size\n");
-  fprintf(stderr, "  --no_transaction\t\tdisable transaction\n");
-  fprintf(stderr, "  --page_size=INT\t\tpage size\n");
-  fprintf(stderr, "  --num_pages=INT\t\tnumber of pages\n");
-  fprintf(stderr, "  --WAL_enabled={0,1}\t\tenable WAL\n");
-  fprintf(stderr, "  --db=PATH\t\t\tpath to location databases are created\n");
-  fprintf(stderr, "  --help\t\t\tshow this help\n");
-  fprintf(stderr, "\n");
-  fprintf(stderr, "[BENCH]\n");
-  fprintf(stderr, "  fillseq\twrite N values in sequential key order in async mode\n");
-  fprintf(stderr, "  fillseqsync\twrite N/100 values in sequential key order in sync mode\n");
-  fprintf(stderr, "  fillseqbatch\tbatch write N values in sequential key order in async mode\n");
-  fprintf(stderr, "  fillrandom\twrite N values in random key order in async mode\n");
-  fprintf(stderr, "  fillrandsync\twrite N/100 values in random key order in sync mode\n");
-  fprintf(stderr, "  fillrandbatch\tbatch write N values in random key order in async mode\n");
-  fprintf(stderr, "  overwrite\toverwrite N values in random key order in async mode\n");
-  fprintf(stderr, "  fillrand100K\twrite N/1000 100K values in random order in async mode\n");
-  fprintf(stderr, "  fillseq100K\twirte N/1000 100K values in sequential order in async mode\n");
-  fprintf(stderr, "  readseq\tread N times sequentially\n");
-  fprintf(stderr, "  readrandom\tread N times in random order\n");
-  fprintf(stderr, "  readrand100K\tread N/1000 100K values in sequential order in async mode\n");
+  SQLITE_BENCHMARK_LOG(stderr, "Usage: %s [OPTION]...\n", argv0);
+  SQLITE_BENCHMARK_LOG(stderr, "SQLite3 benchmark tool\n");
+  SQLITE_BENCHMARK_LOG(stderr, "[OPTION]\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --benchmarks=[BENCH]\t\tspecify benchmark\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --histogram={0,1}\t\trecord histogram\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --raw={0,1}\t\t\toutput raw data\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --compression_ratio=DOUBLE\tcompression ratio\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --use_existing_db={0,1}\tuse existing database\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --num=INT\t\t\tnumber of entries\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --reads=INT\t\t\tnumber of reads\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --value_size=INT\t\tvalue size\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --no_transaction\t\tdisable transaction\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --page_size=INT\t\tpage size\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --num_pages=INT\t\tnumber of pages\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --WAL_enabled={0,1}\t\tenable WAL\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --db=PATH\t\t\tpath to location databases are created\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  --help\t\t\tshow this help\n");
+  SQLITE_BENCHMARK_LOG(stderr, "\n");
+  SQLITE_BENCHMARK_LOG(stderr, "[BENCH]\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  fillseq\twrite N values in sequential key order in async mode\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  fillseqsync\twrite N/100 values in sequential key order in sync mode\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  fillseqbatch\tbatch write N values in sequential key order in async mode\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  fillrandom\twrite N values in random key order in async mode\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  fillrandsync\twrite N/100 values in random key order in sync mode\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  fillrandbatch\tbatch write N values in random key order in async mode\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  overwrite\toverwrite N values in random key order in async mode\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  fillrand100K\twrite N/1000 100K values in random order in async mode\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  fillseq100K\twirte N/1000 100K values in sequential order in async mode\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  readseq\tread N times sequentially\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  readrandom\tread N times in random order\n");
+  SQLITE_BENCHMARK_LOG(stderr, "  readrand100K\tread N/1000 100K values in sequential order in async mode\n");
 
 }
 
 int benchmark_main(int argc, char** argv) {
   init();
 
-  char* default_db_path = malloc(sizeof(char) * 1024);
-  strcpy(default_db_path, "./");
+  char* default_db_path = malloc(sizeof(char) * 100);
+  #ifdef SQLITE_OS_QUEC_RTOS
+  strcpy(default_db_path, "UFS:/benchmark/");
+  strcpy(default_db_path, "SD:/benchmark/");
+  #else
+  strcpy(default_db_path, "./benchmark/");
+  #endif
 
   for (int i = 1; i < argc; i++) {
     double d;
@@ -188,7 +193,7 @@ int benchmark_main(int argc, char** argv) {
       exit(0);
       #endif
     } else {
-      fprintf(stderr, "Invalid flag '%s'\n", argv[i]);
+      SQLITE_BENCHMARK_LOG(stderr, "Invalid flag '%s'\n", argv[i]);
       #ifndef SQLITE_OS_QUEC_RTOS
       exit(1);
       #endif

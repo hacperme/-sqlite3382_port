@@ -101,6 +101,7 @@ static void sqlite3_stress_test(void)
     unsigned int cnt = 0;
 
     print_heap_info();
+    return;
 
 #ifndef _WIN32
 #if SDEMMC_TEST
@@ -276,7 +277,7 @@ static void _sqlite3_demo_task(void *arg)
 
     sqlite3_stress_test();
     extern int benchmark_main(int argc, char** argv);
-//    benchmark_main(0, NULL);
+   benchmark_main(0, NULL);
 
 exit:
 

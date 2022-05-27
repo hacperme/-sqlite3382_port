@@ -23,6 +23,20 @@
 #include <time.h>
 #include <sqlite3.h>
 
+#ifdef SQLITE_OS_QUEC_RTOS
+#include "ql_fs.h"
+#include "ql_log.h"
+#include "ql_api_dev.h"
+#include "ql_api_osi.h"
+#endif
+
+
+#ifdef SQLITE_OS_QUEC_RTOS           
+#define SQLITE_BENCHMARK_LOG(fd, msg, ...)         QL_LOG(QL_LOG_LEVEL_INFO, "SQLITE_BENCHMARK", msg, ##__VA_ARGS__)
+#else
+#define SQLITE_BENCHMARK_LOG(fd, msg, ...)         printf(msg, ##__VA_ARGS__)
+#endif
+
 #define kNumBuckets 154
 #define kNumData 1000000
 
@@ -125,6 +139,7 @@ char* histogram_to_string(Histogram*);
 
 /* Raw */
 void raw_clear(Raw *);
+void raw_free(Raw *);
 void raw_add(Raw *, double);
 char* raw_to_string(Raw *);
 void raw_print(FILE *, Raw *);
