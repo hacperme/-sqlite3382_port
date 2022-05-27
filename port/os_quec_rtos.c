@@ -994,7 +994,7 @@ static int quec_open(
         assert(zName[strlen(zName) + 1] == 0);
     }
 
-    sqlite3_log(0, "zName:%s", zName);
+    // sqlite3_log(0, "zName:%s", zName);
 
     /* Determine the value of the flags parameter passed to POSIX function
      ** open(). These must be calculated even if open() is not called, as
@@ -1103,7 +1103,7 @@ static int quec_full_path_name(
 
     zFull[nFull - 1] = '\0';
 
-    sqlite3_log(0, "zRelative:%s", zRelative);
+    // sqlite3_log(0, "zRelative:%s", zRelative);
 
     if (zRelative[0] == '/' ||
         strncmp(zRelative, _UFS_ROOT, strlen(_UFS_ROOT)) == 0 ||
@@ -1124,7 +1124,7 @@ static int quec_full_path_name(
         sqlite3_snprintf(nFull - nCwd, &zFull[nCwd], "/%s", zRelative);
     }
 
-    sqlite3_log(0, "zFull:%s", zFull);
+    // sqlite3_log(0, "zFull:%s", zFull);
 
     return SQLITE_OK;
 }
