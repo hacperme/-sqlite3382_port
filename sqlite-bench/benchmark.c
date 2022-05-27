@@ -21,7 +21,7 @@ int reads_;
 double start_;
 double last_op_finish_;
 int64_t bytes_;
-char* message_;
+char* message_ = NULL;
 Histogram hist_;
 Raw raw_;
 RandomGenerator gen_;
@@ -161,9 +161,11 @@ static void start() {
   bytes_ = 0;
   if(message_)
   {
+    //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
     free(message_);
   }
   message_ = malloc(sizeof(char) * 10000);
+  //SQLITE_BENCHMARK_LOG(stderr, "%d-%s malloc:%p\n", __LINE__, __func__, message_);
   strcpy(message_, "");
   last_op_finish_ = start_;
   histogram_clear(&hist_);
@@ -230,14 +232,20 @@ static void stop(const char* name) {
     }
 
     if (message_ && !strcmp(message_, "")) {
-      message_ = strcat(strcat(rate, " "), message_);
-      free(rate);
+        strcat(rate, " ");
+        strcat(rate, message_);
+        //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
+        free(message_);
+        message_ = rate;
+        //SQLITE_BENCHMARK_LOG(stderr, "%d-%s change:%p\n", __LINE__, __func__, message_);
     } else {
       if(message_)
       {
+        //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
         free(message_);
       }
       message_ = rate;
+      //SQLITE_BENCHMARK_LOG(stderr, "%d-%s change:%p\n", __LINE__, __func__, message_);
     }
   }
 
@@ -248,6 +256,7 @@ static void stop(const char* name) {
           (!message_) ? "" : message_);
   if(message_)
   {
+    //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
     free(message_);
     message_ = NULL;
   }
@@ -306,6 +315,11 @@ void benchmark_init() {
 void benchmark_fini() {
   int status = sqlite3_close(db_);
   error_check(status);
+  if(message_)
+  {
+      //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
+      free(message_);
+  }
 }
 
 void benchmark_run() {
@@ -456,9 +470,11 @@ void benchmark_write(bool write_sync, int order, int state,
     if (FLAGS_use_existing_db) {
       if(message_)
       {
+        //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
         free(message_);
       }
       message_ = malloc(sizeof(char) * 100);
+      //SQLITE_BENCHMARK_LOG(stderr, "%d-%s malloc:%p\n", __LINE__, __func__, message_);
       strcpy(message_, "skipping (--use_existing_db is true)");
       return;
     }
@@ -473,9 +489,11 @@ void benchmark_write(bool write_sync, int order, int state,
     snprintf(msg, 100, "(%d ops)", num_entries);
     if(message_)
     {
+      //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
       free(message_);
     }
     message_ = msg;
+    //SQLITE_BENCHMARK_LOG(stderr, "%d-%s change:%p\n", __LINE__, __func__, message_);
   }
 
   char* err_msg = NULL;
