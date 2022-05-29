@@ -4,6 +4,7 @@ CONFIG -= app_bundle
 CONFIG -= qt
 
 SOURCES += \
+        heap_4.c \
         main.c \
         port/os_win.c \
         shell.c \
@@ -18,6 +19,7 @@ SOURCES += \
 
 HEADERS += \
     config.h \
+    heap_4.h \
     sqlite-bench/bench.h \
     sqlite3.h \
     sqlite3ext.h
