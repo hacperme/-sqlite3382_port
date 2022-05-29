@@ -100,14 +100,14 @@ void histogram_merge(Histogram* hist_, const Histogram* other_) {
 }
 char* histogram_to_string(Histogram* hist_) {
   size_t r_size = 1024;
-  char* r = malloc(sizeof(char) * 1024);
+  char* r = pvPortMalloc(sizeof(char) * 1024);
   strcpy(r, "");
   char buf[200];
   snprintf(buf, sizeof(buf),
             "Count: %.0f  Average: %.4f  StdDiv: %.2f\n",
             hist_->num_, average(hist_), standard_deviation(hist_));
   if (r_size < strlen(r) + strlen(buf)) {
-    r = realloc(r, r_size * 2);
+    r = pvPortRealloc(r, r_size * 2);
     r_size *= 2;
   }
   strcat(r, buf);
@@ -116,12 +116,12 @@ char* histogram_to_string(Histogram* hist_) {
             (hist_->num_ == 0.0 ? 0.0 : hist_->min_),
             median(hist_), hist_->max_);
   if (r_size < strlen(r) + strlen(buf)) {
-    r = realloc(r, r_size * 2);
+    r = pvPortRealloc(r, r_size * 2);
     r_size *= 2;
   }
   strcat(r, buf);
   if (r_size < strlen(r) + strlen(buf)) {
-    r = realloc(r, r_size * 2);
+    r = pvPortRealloc(r, r_size * 2);
     r_size *= 2;
   }
   strcat(r, "------------------------------------------------------\n");
@@ -138,7 +138,7 @@ char* histogram_to_string(Histogram* hist_) {
               mult * hist_->buckets_[b],
               mult * sum);
     if (r_size < strlen(r) + strlen(buf)) {
-      r = realloc(r, r_size * 2);
+      r = pvPortRealloc(r, r_size * 2);
       r_size *= 2;
     }
     strcat(r, buf);
@@ -146,7 +146,7 @@ char* histogram_to_string(Histogram* hist_) {
     /* Add hash marks based on percentage; 20 marks for 100%. */
     int marks = (int)(20 * (hist_->buckets_[b] / hist_->num_) + 0.5);
     if (r_size < strlen(r) + marks + 1) {
-      r = realloc(r, r_size * 2);
+      r = pvPortRealloc(r, r_size * 2);
       r_size *= 2;
     }
     for (int i = 0; i < marks; i++)

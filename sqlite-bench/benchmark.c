@@ -123,35 +123,35 @@ static void print_environment() {
   if (cpuinfo != NULL) {
     char line[1000];
     int num_cpus = 0;
-    char* cpu_type = malloc(sizeof(char) * 1000);
-    char* cache_size = malloc(sizeof(char) * 1000);
+    char* cpu_type = pvPortMalloc(sizeof(char) * 1000);
+    char* cache_size = pvPortMalloc(sizeof(char) * 1000);
     while (fgets(line, sizeof(line), cpuinfo) != NULL) {
       char* sep = strchr(line, ':');
       if (sep == NULL) {
         continue;
       }
-      char* key = calloc(sizeof(char), 1000);
-      char* val = calloc(sizeof(char), 1000);
+      char* key = pvPortCalloc(sizeof(char), 1000);
+      char* val = pvPortCalloc(sizeof(char), 1000);
       strncpy(key, line, sep - 1 - line);
       strcpy(val, sep + 1);
       char* trimed_key = trim_space(key);
       char* trimed_val = trim_space(val);
-      free(key);
-      free(val);
+      vPortFree(key);
+      vPortFree(val);
       if (!strcmp(trimed_key, "model name")) {
         ++num_cpus;
         strcpy(cpu_type, trimed_val);
       } else if (!strcmp(trimed_key, "cache size")) {
         strcpy(cache_size, trimed_val);
       }
-      free(trimed_key);
-      free(trimed_val);
+      vPortFree(trimed_key);
+      vPortFree(trimed_val);
     }
     fclose(cpuinfo);
     SQLITE_BENCHMARK_LOG(stderr, "CPU:        %d * %s\n", num_cpus, cpu_type);
     SQLITE_BENCHMARK_LOG(stderr, "CPUCache:   %s\n", cache_size);
-    free(cpu_type);
-    free(cache_size);
+    vPortFree(cpu_type);
+    vPortFree(cache_size);
   }
 #endif
 }
@@ -161,15 +161,19 @@ static void start() {
   bytes_ = 0;
   if(message_)
   {
-    //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
-    free(message_);
+    
+    vPortFree(message_);
   }
-  message_ = malloc(sizeof(char) * 10000);
-  //SQLITE_BENCHMARK_LOG(stderr, "%d-%s malloc:%p\n", __LINE__, __func__, message_);
+  message_ = pvPortMalloc(sizeof(char) * 10000);
+  
   strcpy(message_, "");
   last_op_finish_ = start_;
   histogram_clear(&hist_);
-  raw_clear(&raw_);
+  if (FLAGS_raw)
+  {
+    raw_clear(&raw_);
+  }
+  
   done_ = 0;
   next_report_ = 100;
 }
@@ -218,7 +222,7 @@ static void stop(const char* name) {
   if (done_ < 1) done_ = 1;
 
   if (bytes_ > 0) {
-    char *rate = malloc(sizeof(char) * 100);
+    char *rate = pvPortMalloc(sizeof(char) * 100);
     memset(rate, 0, sizeof(char) * 100);
     if(bytes_ >= 1048576)
     {
@@ -234,15 +238,15 @@ static void stop(const char* name) {
     if (message_ && !strcmp(message_, "")) {
         strcat(rate, " ");
         strcat(rate, message_);
-        //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
-        free(message_);
+        
+        vPortFree(message_);
         message_ = rate;
         //SQLITE_BENCHMARK_LOG(stderr, "%d-%s change:%p\n", __LINE__, __func__, message_);
     } else {
       if(message_)
       {
-        //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
-        free(message_);
+        
+        vPortFree(message_);
       }
       message_ = rate;
       //SQLITE_BENCHMARK_LOG(stderr, "%d-%s change:%p\n", __LINE__, __func__, message_);
@@ -256,8 +260,8 @@ static void stop(const char* name) {
           (!message_) ? "" : message_);
   if(message_)
   {
-    //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
-    free(message_);
+    
+    vPortFree(message_);
     message_ = NULL;
   }
   if (FLAGS_raw) {
@@ -268,7 +272,12 @@ static void stop(const char* name) {
     char *data = histogram_to_string(&hist_);
     SQLITE_BENCHMARK_LOG(stderr, "Microseconds per op:\n%s\n",
             data);
-    free(data);
+    vPortFree(data);
+  }
+
+  if(name)
+  {
+    vPortFree((void *)name);
   }
 #ifndef SQLITE_OS_QUEC_RTOS
   fflush(stdout);
@@ -317,9 +326,16 @@ void benchmark_fini() {
   error_check(status);
   if(message_)
   {
-      //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
-      free(message_);
+      
+      vPortFree(message_);
   }
+  if (FLAGS_raw)
+  {
+    raw_free(&raw_);
+  }
+  
+  rand_gen_deinit(&gen_);
+
 }
 
 void benchmark_run() {
@@ -334,7 +350,7 @@ void benchmark_run() {
       name = benchmarks;
       benchmarks = NULL;
     } else {
-      name = calloc(sizeof(char), (sep - benchmarks + 1));
+      name = pvPortCalloc(sizeof(char), (sep - benchmarks + 1));
       strncpy(name, benchmarks, sep - benchmarks);
       benchmarks = sep + 1;
     }
@@ -470,11 +486,11 @@ void benchmark_write(bool write_sync, int order, int state,
     if (FLAGS_use_existing_db) {
       if(message_)
       {
-        //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
-        free(message_);
+        
+        vPortFree(message_);
       }
-      message_ = malloc(sizeof(char) * 100);
-      //SQLITE_BENCHMARK_LOG(stderr, "%d-%s malloc:%p\n", __LINE__, __func__, message_);
+      message_ = pvPortMalloc(sizeof(char) * 100);
+      
       strcpy(message_, "skipping (--use_existing_db is true)");
       return;
     }
@@ -485,12 +501,12 @@ void benchmark_write(bool write_sync, int order, int state,
   }
 
   if (num_entries != num_) {
-    char* msg = malloc(sizeof(char) * 100);
+    char* msg = pvPortMalloc(sizeof(char) * 100);
     snprintf(msg, 100, "(%d ops)", num_entries);
     if(message_)
     {
-      //SQLITE_BENCHMARK_LOG(stderr, "%d-%s free:%p\n", __LINE__, __func__, message_);
-      free(message_);
+      
+      vPortFree(message_);
     }
     message_ = msg;
     //SQLITE_BENCHMARK_LOG(stderr, "%d-%s change:%p\n", __LINE__, __func__, message_);
@@ -553,7 +569,7 @@ void benchmark_write(bool write_sync, int order, int state,
       error_check(status);
       status = sqlite3_bind_blob(replace_stmt, 2, value,
                                   value_size, SQLITE_TRANSIENT);
-      free((void *)value);
+      vPortFree((void *)value);
       error_check(status);
 
       /* Execute replace_stmt */

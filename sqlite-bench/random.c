@@ -11,7 +11,7 @@ static char *compressible_string(Random*, double, size_t);
  * https://github.com/google/leveldb/blob/master/util/testutil.cc
  */
 static char *random_string(Random* rnd, int len) {
-  char* dst = malloc(sizeof(char) * (size_t)(len + 1));
+  char* dst = pvPortMalloc(sizeof(char) * (size_t)(len + 1));
   for (int i = 0; i < len; i++) {
     dst[i] = (char)(' ' + rand_uniform(rnd, 95));
   }
@@ -28,7 +28,7 @@ static char *compressible_string(Random* rnd, double compressed_fraction,
   size_t raw_data_len = strlen(raw_data);
 
   int pos = 0;
-  char* dst = malloc(sizeof(char) * (len + 1));
+  char* dst = pvPortMalloc(sizeof(char) * (len + 1));
   dst[0] = '\0';
   while (pos < len) {
     strcat(dst, raw_data);
@@ -37,7 +37,7 @@ static char *compressible_string(Random* rnd, double compressed_fraction,
 
   if(raw_data)
   {
-    free(raw_data);
+    vPortFree(raw_data);
   }
 
   return dst;
@@ -75,8 +75,8 @@ void rand_gen_init(RandomGenerator* gen_, double compression_ratio) {
   Random rnd;
   char* piece = NULL;
   
-//  gen_->data_ = malloc(sizeof(char) * 1048576);
-  gen_->data_ = malloc(sizeof(char) * 10*1024);
+//  gen_->data_ = pvPortMalloc(sizeof(char) * 1048576);
+  gen_->data_ = pvPortMalloc(sizeof(char) * 10*1024);
   gen_->data_size_ = 0;
   gen_->pos_ = 0;
   (gen_->data_)[0] = '\0';
@@ -87,7 +87,7 @@ void rand_gen_init(RandomGenerator* gen_, double compression_ratio) {
     piece = compressible_string(&rnd, compression_ratio, 100);
     strcat(gen_->data_, piece);
     gen_->data_size_ += strlen(piece);
-    free(piece);
+    vPortFree(piece);
     piece = NULL;
     #ifdef SQLITE_OS_QUEC_RTOS
     ql_dev_feed_wdt();
@@ -97,8 +97,21 @@ void rand_gen_init(RandomGenerator* gen_, double compression_ratio) {
 
   if(piece)
   {
-    free(piece);
+    vPortFree(piece);
   }
+}
+
+void rand_gen_deinit(RandomGenerator* gen_)
+{
+    if(gen_)
+    {
+        gen_->data_size_ = 0;
+        gen_->pos_ = 0;
+        if(gen_->data_)
+        {
+            vPortFree(gen_->data_);
+        }
+    }
 }
 
 char* rand_gen_generate(RandomGenerator* gen_, int len) {
@@ -107,7 +120,7 @@ char* rand_gen_generate(RandomGenerator* gen_, int len) {
     assert(len < gen_->data_size_);
   }
   gen_->pos_ += len;
-  char* substr = malloc(sizeof(char) * (len + 1));
+  char* substr = pvPortMalloc(sizeof(char) * (len + 1));
   strncpy(substr, (gen_->data_) + gen_->pos_ - len, len);
 
   return substr;

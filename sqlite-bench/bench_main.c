@@ -145,7 +145,7 @@ static void print_usage(const char* argv0) {
 int benchmark_main(int argc, char** argv) {
   init();
 
-  char* default_db_path = malloc(sizeof(char) * 100);
+  char* default_db_path = pvPortMalloc(sizeof(char) * 100);
   #ifdef SQLITE_OS_QUEC_RTOS
   strcpy(default_db_path, "UFS:/benchmark/");
   strcpy(default_db_path, "SD:/benchmark/");
@@ -207,6 +207,8 @@ int benchmark_main(int argc, char** argv) {
   benchmark_init();
   benchmark_run();
   benchmark_fini();
+
+  vPortFree(default_db_path);
 
   return 0;
 }

@@ -22,6 +22,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <sqlite3.h>
+#include "heap_4.h"
 
 #ifdef SQLITE_OS_QUEC_RTOS
 #include "ql_fs.h"
@@ -150,6 +151,7 @@ uint32_t rand_next(Random*);
 uint32_t rand_uniform(Random*, int);
 void rand_gen_init(RandomGenerator*, double);
 char* rand_gen_generate(RandomGenerator*, int);
+void rand_gen_deinit(RandomGenerator*);
 
 /* util.c */
 uint64_t now_micros(void);
