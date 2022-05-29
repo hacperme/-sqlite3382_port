@@ -100,6 +100,7 @@ typedef struct A_BLOCK_LINK
 {
     struct A_BLOCK_LINK * pxNextFreeBlock; /*<< The next free block in the list. */
     size_t xBlockSize;                     /*<< The size of the free block. */
+    size_t xWantedSize;
 } BlockLink_t;
 
 /*-----------------------------------------------------------*/
@@ -141,6 +142,7 @@ void * pvPortMalloc( size_t xWantedSize )
     BlockLink_t * pxBlock, * pxPreviousBlock, * pxNewBlockLink;
     void * pvReturn = NULL;
     size_t xAdditionalRequiredSize;
+    size_t _xWantedSize = xWantedSize;
 
     vTaskSuspendAll();
     {
@@ -221,6 +223,7 @@ void * pvPortMalloc( size_t xWantedSize )
                         /* Calculate the sizes of two blocks split from the
                          * single block. */
                         pxNewBlockLink->xBlockSize = pxBlock->xBlockSize - xWantedSize;
+                        pxNewBlockLink->xWantedSize = 0;
                         pxBlock->xBlockSize = xWantedSize;
 
                         /* Insert the new block into the list of free blocks. */
@@ -230,6 +233,8 @@ void * pvPortMalloc( size_t xWantedSize )
                     {
                         mtCOVERAGE_TEST_MARKER();
                     }
+
+                    pxBlock->xWantedSize = _xWantedSize;
 
                     xFreeBytesRemaining -= pxBlock->xBlockSize;
 
@@ -320,6 +325,7 @@ void vPortFree( void * pv )
                     /* Add this block to the list of free blocks. */
                     xFreeBytesRemaining += pxLink->xBlockSize;
                     traceFREE( pv, pxLink->xBlockSize );
+                    pxLink->xWantedSize = 0;
                     prvInsertBlockIntoFreeList( ( ( BlockLink_t * ) pxLink ) );
                     xNumberOfSuccessfulFrees++;
                 }
@@ -379,7 +385,7 @@ void *pvPortRealloc(void *p,
                     size_t xSize)
 {
     void *pv = NULL;
-    uint8_t *puc = (uint8_t *)pv;
+    uint8_t *puc = (uint8_t *)p;
     BlockLink_t *pxLink;
 
     if (p == NULL)
@@ -398,7 +404,7 @@ void *pvPortRealloc(void *p,
     {
         return NULL;
     }
-    memcpy(pv, p, (pxLink->xBlockSize > xSize) ? xSize : pxLink->xBlockSize);
+    memcpy(pv, p, pxLink->xWantedSize);
     vPortFree(p);
 
     return pv;   
@@ -427,6 +433,7 @@ static void prvHeapInit( void ) /* PRIVILEGED_FUNCTION */
      * blocks.  The void cast is used to prevent compiler warnings. */
     xStart.pxNextFreeBlock = ( void * ) pucAlignedHeap;
     xStart.xBlockSize = ( size_t ) 0;
+    xStart.xWantedSize = 0;
 
     /* pxEnd is used to mark the end of the list of free blocks and is inserted
      * at the end of the heap space. */
@@ -441,6 +448,7 @@ static void prvHeapInit( void ) /* PRIVILEGED_FUNCTION */
      * entire heap space, minus the space taken by pxEnd. */
     pxFirstFreeBlock = ( void * ) pucAlignedHeap;
     pxFirstFreeBlock->xBlockSize = uxAddress - ( size_t ) pxFirstFreeBlock;
+    pxFirstFreeBlock->xWantedSize = 0;
     pxFirstFreeBlock->pxNextFreeBlock = pxEnd;
 
     /* Only one block exists - and it covers the entire usable heap space. */
@@ -568,6 +576,31 @@ void vApplicationMallocFailedHook( void )
     printf("\nmalloc failed\n");
     exit(-1);
 
+}
+
+size_t vPortGetAllocSize(void *p)
+{
+    uint8_t *puc = (uint8_t *)p;
+    BlockLink_t *pxLink;
+
+    if (p == NULL)
+    {
+        return 0;
+    }
+
+    puc -= xHeapStructSize;
+    pxLink = (void *)puc;
+
+    configASSERT(heapBLOCK_IS_ALLOCATED(pxLink) != 0);
+    configASSERT(pxLink->pxNextFreeBlock == NULL);
+
+    if(pxLink->xWantedSize == 0)
+    {
+        configASSERT(pxLink->xWantedSize != 0);
+
+    }
+
+    return pxLink->xWantedSize;
 }
 
 /*-----------------------------------------------------------*/

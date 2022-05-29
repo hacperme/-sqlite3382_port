@@ -23,7 +23,7 @@ void test_heap(void)
     printf("xPortGetFreeHeapSize:%d\n", xPortGetFreeHeapSize());
     char * a = pvPortMalloc(1000);
     printf("xPortGetFreeHeapSize:%d\n", xPortGetFreeHeapSize());
-    printf("a:%p\n", a);
+    printf("a:%p, size=%d\n", a, vPortGetAllocSize(a));
     vPortFree(a);
     printf("xPortGetFreeHeapSize:%d\n", xPortGetFreeHeapSize());
 

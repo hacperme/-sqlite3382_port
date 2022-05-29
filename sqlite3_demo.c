@@ -39,6 +39,7 @@ ql_task_t sqlite3_demo_task = NULL;
 
 #else
 #include <windows.h>
+#include "heap_4.h"
 #define QL_SQLITE_DEMO_LOG(msg, ...)			    printf(msg, ##__VA_ARGS__)
 #endif
 
@@ -62,11 +63,109 @@ static void shellLog(void *pArg, int iErrCode, const char *zMsg)
     QL_SQLITE_DEMO_LOG("(%d) %s\n", iErrCode, zMsg);
 }
 
+#ifdef _WIN32
+/*
+** Allocate nBytes of memory.
+*/
+static void *winMemMalloc(int nBytes)
+{
+    void *p;
+    p = pvPortMalloc(nBytes);
+
+    return p;
+}
+
+/*
+** Free memory.
+*/
+static void winMemFree(void *pPrior)
+{
+    vPortFree(pPrior);
+}
+
+/*
+** Change the size of an existing memory allocation
+*/
+static void *winMemRealloc(void *pPrior, int nBytes)
+{
+    void *p;
+
+    if (!pPrior)
+    {
+        p = pvPortMalloc(nBytes);
+    }
+    else
+    {
+        p = pvPortRealloc(pPrior, nBytes);
+    }
+    return p;
+}
+
+/*
+** Return the size of an outstanding allocation, in bytes.
+*/
+static int winMemSize(void *p)
+{
+    size_t n = 0;
+    if(!p)
+    {
+        return 0;
+    }
+
+    n = vPortGetAllocSize(p);
+
+    return (int)n;
+}
+
+/*
+** Round up a request size to the next valid allocation size.
+*/
+static int winMemRoundup(int n)
+{
+    return n;
+}
+
+/*
+** Initialize this module.
+*/
+static int winMemInit(void *pAppData)
+{
+    (void)pAppData;
+    return SQLITE_OK;
+}
+
+/*
+** Deinitialize this module.
+*/
+static void winMemShutdown(void *pAppData)
+{
+    (void)pAppData;
+}
+
+const sqlite3_mem_methods *sqlite3MemGetCusWin32(void)
+{
+    static const sqlite3_mem_methods CusWinMemMethods = {
+        winMemMalloc,
+        winMemFree,
+        winMemRealloc,
+        winMemSize,
+        winMemRoundup,
+        winMemInit,
+        winMemShutdown,
+        0};
+    return &CusWinMemMethods;
+}
+
+#endif
+
 static void sqlite3_init(void)
 {
     verify_uninitialized();
     sqlite3_config(SQLITE_CONFIG_MULTITHREAD);
     sqlite3_config(SQLITE_CONFIG_LOG, shellLog, NULL);
+#ifdef _WIN32
+    sqlite3_config(SQLITE_CONFIG_MALLOC, sqlite3MemGetCusWin32());
+#endif
     sqlite3_initialize();
     
 }

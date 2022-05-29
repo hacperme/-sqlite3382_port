@@ -100,6 +100,8 @@ void * pvPortRealloc( void *p,
 void vPortFree( void * pv ) PRIVILEGED_FUNCTION;
 #endif
 
+size_t vPortGetAllocSize( void *p ) PRIVILEGED_FUNCTION;
+
 void vPortInitialiseBlocks( void ) PRIVILEGED_FUNCTION;
 size_t xPortGetFreeHeapSize( void ) PRIVILEGED_FUNCTION;
 size_t xPortGetMinimumEverFreeHeapSize( void ) PRIVILEGED_FUNCTION;
